@@ -2,8 +2,8 @@ import { WebSocketServer } from "ws";
 
 import { handlePlayerReg } from "./handlers/player.js";
 import { handleCreateRoom, handleAddUserToRoom } from "./handlers/rooms.js";
-import { handleAddShips } from "./handlers/ships.js";
-import { handleAttack, handleRandomAttack } from "./handlers/game.js";
+//import { handleAddShips } from "./handlers/ships.js";
+import { handleAttack, handleRandomAttack,handleAddShips } from "./handlers/game.js";
 
 export let wss = null;
 

@@ -1,37 +1,48 @@
 import { rooms } from "../../db/rooms.js";
 
+
 /**
  * Добавляем корабли игрока
  */
 export function handleAddShips(ws, data) {
-    const { gameId, ships, indexPlayer } = data;
+    if (typeof data === "string") data = JSON.parse(data);
 
+    const { gameId, ships, idPlayer  } = data;
+
+    console.log("Check0");
     // Найдём комнату с этой игрой
     const room = Array.from(rooms.values()).find(r => r.gameId === gameId);
     if (!room) return;
-
+    console.log("Check1");
     // Найдём игрока по indexPlayer
-    const player = room.players.find(p => p.index === indexPlayer);
-    if (!player) return;
+    /*const player = room.players.find(p => p.index === indexPlayer);
+    if (!player) return;*/
+    room.board[idPlayer] = ships;
 
+    console.log("Check2");
     // Сохраняем корабли
-    if (!room.board) room.board = {};
-    room.board[indexPlayer] = ships;
-
+    //if (!room.board) room.board = {};
+    console.log("Check3");
+    console.log("Board keys:", Object.keys(room.board));
+    console.log("Players indices:", room.players.map(p => p.index));
     // Отправим start_game, если оба игрока прислали корабли
-    const allPlayersReady = room.players.every(p => room.board?.[p.index]);
-    if (allPlayersReady) {
+    const bothReady = room.players.every(p => room.board[p.idPlayer]);
+
+    if (room.players.length === 2) {
+        console.log("Check4: All players ready!");
         // Случайно выбираем, кто ходит первым
         const firstPlayer = room.players[Math.floor(Math.random() * room.players.length)];
         room.currentPlayer = firstPlayer.index;
 
         room.players.forEach(p => {
+            const enemy = room.players.find(pl => pl.index !== p.index);
+
             const payload = JSON.stringify({
                 type: "start_game",
-                data: {
-                    ships: room.board[p.index], // свои корабли
+                data: JSON.stringify({
+                    ships: room.board[enemy.idPlayer], // свои корабли
                     currentPlayerIndex: room.currentPlayer
-                },
+                }),
                 id: 0
             });
             p.ws.send(payload);
@@ -59,7 +70,7 @@ export function handleAttack(ws, data) {
     if (!enemy) return;
 
     // Проверяем попадание по доске противника
-    const enemyShips = room.board[enemy.index];
+    const enemyShips = room.board[String(enemy.index)];
     let status = "miss";
     for (const ship of enemyShips) {
         for (let i = 0; i < ship.length; i++) {
@@ -122,7 +133,7 @@ export function handleRandomAttack(ws, data) {
     if (!enemy) return;
 
     // Ищем случайную свободную клетку
-    const enemyShips = room.board[enemy.index];
+    const enemyShips = room.board[String(enemy.index)];
     let x, y, status;
     do {
         x = Math.floor(Math.random() * 10);
@@ -148,7 +159,7 @@ function sendTurn(room) {
     room.players.forEach(p => {
         const payload = JSON.stringify({
             type: "turn",
-            data: { currentPlayer: room.currentPlayer },
+            data: JSON.stringify({ currentPlayer: room.currentPlayer }),
             id: 0
         });
         p.ws.send(payload);

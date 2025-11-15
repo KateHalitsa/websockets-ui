@@ -135,6 +135,7 @@ function createGameForRoom(room, roomId) {
 
     // Сохраняем игру в комнату
     room.gameId = idGame;
+    room.board = {};
     console.log("CREATE GAME >>>", idGame, "Players:", p1.name, p2.name);
 
     const payload1 = JSON.stringify({
