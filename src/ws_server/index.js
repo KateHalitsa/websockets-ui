@@ -1,38 +1,35 @@
 import { WebSocketServer } from "ws";
 
-// handlers
-import { handlePlayerReg, broadcastWinners } from "./handlers/player.js";
-import { handleCreateRoom, handleAddUserToRoom, broadcastRooms } from "./handlers/rooms.js";
+import { handlePlayerReg } from "./handlers/player.js";
+import { handleCreateRoom, handleAddUserToRoom } from "./handlers/rooms.js";
 import { handleAddShips } from "./handlers/ships.js";
 import { handleAttack, handleRandomAttack } from "./handlers/game.js";
 
 export let wss = null;
 
-export const connections = new Set(); // все клиенты (ws)
+export function startWsServer() {
+    const PORT = 3000;
 
-export function initWsServer(port) {
-    wss = new WebSocketServer({ port });
+    wss = new WebSocketServer({ port: PORT });
+
+    console.log(`WebSocket server started on ws://localhost:${PORT}/`);
 
     wss.on("connection", (ws) => {
-        console.log("Client connected");
-        connections.add(ws);
+        ws.on("message", (msg) => {
+            let data;
 
-        ws.on("message", async (msg) => {
-            let parsed;
             try {
-                parsed = JSON.parse(msg);
-            } catch {
-                console.log("Invalid JSON:", msg);
+                data = JSON.parse(msg);
+            } catch (err) {
+                console.log("Invalid JSON");
                 return;
             }
 
-            console.log("RECEIVED:", parsed);
+            console.log("WS RECEIVED:", data.type);
 
-            const { type, id, data } = parsed;
-
-            switch (type) {
+            switch (data.type) {
                 case "reg":
-                    handlePlayerReg(ws, data);
+                    handlePlayerReg(ws, data.data);
                     break;
 
                 case "create_room":
@@ -40,32 +37,25 @@ export function initWsServer(port) {
                     break;
 
                 case "add_user_to_room":
-                    handleAddUserToRoom(ws, data);
+                    handleAddUserToRoom(ws, data.data);
                     break;
 
                 case "add_ships":
-                    handleAddShips(ws, data);
+                    handleAddShips(ws, data.data);
                     break;
 
                 case "attack":
-                    handleAttack(ws, data);
+                    handleAttack(ws, data.data);
                     break;
 
                 case "randomAttack":
-                    handleRandomAttack(ws, data);
+                    handleRandomAttack(ws, data.data);
                     break;
-
-                default:
-                    console.log("Unknown command:", type);
             }
         });
 
         ws.on("close", () => {
-            connections.delete(ws);
             console.log("Client disconnected");
-
-            // обновляем комнаты для всех
-            broadcastRooms();
         });
     });
 }
