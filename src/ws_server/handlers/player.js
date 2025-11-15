@@ -1,4 +1,4 @@
-import { players } from "../../db/players.js";
+import { players,winners } from "../../db/players.js";
 import { wss } from "../index.js";
 
 /**
@@ -7,78 +7,76 @@ import { wss } from "../index.js";
 export function handlePlayerReg(ws, data) {
     const { name, password } = data;
 
-    // игрок не существует → создаём
-    if (!players.has(name)) {
-        players.set(name, { password, wins: 0 });
+    let player = players.find((p) => p.name === name);
 
-        ws.playerName = name;
+    let response;
 
-        ws.send(JSON.stringify({
+    if (!player) {
+        // новый игрок
+        player = {
+            name,
+            password,
+            index: Date.now().toString()
+        };
+        players.push(player);
+
+        response = {
             type: "reg",
-            data: {
+            data:JSON.stringify({
                 name,
-                index: name,
+                index: player.index,
                 error: false,
                 errorText: ""
-            },
+            }),
             id: 0
-        }));
-
-        broadcastWinners();
-        return;
+        };
+    } else {
+        // игрок уже существует — проверяем пароль
+        if (player.password !== password) {
+            response = {
+                type: "reg",
+                data: {
+                    name,
+                    index: "",
+                    error: true,
+                    errorText: "Wrong password"
+                },
+                id: 0
+            };
+        } else {
+            response = {
+                type: "reg",
+                data: {
+                    name,
+                    index: player.index,
+                    error: false,
+                    errorText: ""
+                },
+                id: 0
+            };
+        }
     }
 
-    // игрок есть, проверяем пароль
-    const player = players.get(name);
+    // отправляем ЛИЧНЫЙ ответ
+    ws.send(JSON.stringify(response));
 
-    if (player.password !== password) {
-        ws.send(JSON.stringify({
-            type: "reg",
-            data: {
-                name,
-                index: null,
-                error: true,
-                errorText: "Wrong password"
-            },
-            id: 0
-        }));
-        return;
-    }
-
-    // успешный логин
-    ws.playerName = name;
-
-    ws.send(JSON.stringify({
-        type: "reg",
-        data: {
-            name,
-            index: name,
-            error: false,
-            errorText: ""
-        },
-        id: 0
-    }));
-
+    // обновляем таблицу победителей
     broadcastWinners();
 }
 
 /**
- * Отправка таблицы победителей ВСЕМ игрокам
+ * Отправка winners всем игрокам
  */
 export function broadcastWinners() {
-    const winnersArray = [];
-
-    for (const [name, data] of players.entries()) {
-        winnersArray.push({ name, wins: data.wins });
-    }
-
-    const message = JSON.stringify({
+    const data = JSON.stringify({
         type: "update_winners",
-        data: winnersArray,
+        data: JSON.stringify(winners),
         id: 0
     });
 
     wss.clients.forEach((client) => {
-        if (client.readyState === 1) client.send(message);
+        if (client.readyState === 1) {
+            client.send(data);
+        }
     });
 }

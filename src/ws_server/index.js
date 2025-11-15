@@ -15,6 +15,13 @@ export function startWsServer() {
     console.log(`WebSocket server started on ws://localhost:${PORT}/`);
 
     wss.on("connection", (ws) => {
+        const originalSend = ws.send;
+
+        ws.send = function (data) {
+            console.log("SEND >>>", data);
+            originalSend.call(ws, data);
+        };
+
         ws.on("message", (msg) => {
             let data;
 
