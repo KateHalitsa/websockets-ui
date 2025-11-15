@@ -28,6 +28,7 @@ export function handleCreateRoom(ws) {
  * Добавляем игрока в комнату
  */
 export function handleAddUserToRoom(ws, data) {
+    if (!ws.playerName || !ws.playerIndex) return; // игрок должен быть зарегистрирован
     const { indexRoom } = data;
     const room = rooms.get(indexRoom);
 
@@ -39,13 +40,15 @@ export function handleAddUserToRoom(ws, data) {
     room.players.push({
         ws,
         name: ws.playerName,
-        index: ws.playerName
+        index: ws.playerIndex
     });
 
     broadcastRooms();
 
     // Когда двое — создаём игру
-    createGameForRoom(room, indexRoom);
+    if (room.players.length === 2) {
+        createGameForRoom(room, indexRoom);
+    }
 }
 
 /**
@@ -68,7 +71,7 @@ export function broadcastRooms() {
 
     const payload = JSON.stringify({
         type: "update_room",
-        data: list,
+        data: JSON.stringify(list),
         id: 0
     });
 
@@ -110,19 +113,19 @@ function createGameForRoom(room, roomId) {
 
     const response1 = JSON.stringify({
         type: "create_game",
-        data: {
+        data:  JSON.stringify({
             idGame,
             idPlayer: gameData.players[0].id
-        },
+        }),
         id: 0
     });
 
     const response2 = JSON.stringify({
         type: "create_game",
-        data: {
+        data: JSON.stringify( {
             idGame,
             idPlayer: gameData.players[1].id
-        },
+        }),
         id: 0
     });
 

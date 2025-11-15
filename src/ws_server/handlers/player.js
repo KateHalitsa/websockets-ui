@@ -5,63 +5,28 @@ import { wss } from "../index.js";
  * Регистрация или логин
  */
 export function handlePlayerReg(ws, data) {
-    const { name, password } = data;
+    const { name } = JSON.parse(data);
 
-    let player = players.find((p) => p.name === name);
-
-    let response;
-
-    if (!player) {
-        // новый игрок
-        player = {
-            name,
-            password,
-            index: Date.now().toString()
-        };
-        players.push(player);
-
-        response = {
+    if (!name) {
+        ws.send(JSON.stringify({
             type: "reg",
-            data:JSON.stringify({
-                name,
-                index: player.index,
-                error: false,
-                errorText: ""
-            }),
+            data: JSON.stringify({ error: true, errorText: "Имя не задано" }),
             id: 0
-        };
-    } else {
-        // игрок уже существует — проверяем пароль
-        if (player.password !== password) {
-            response = {
-                type: "reg",
-                data: {
-                    name,
-                    index: "",
-                    error: true,
-                    errorText: "Wrong password"
-                },
-                id: 0
-            };
-        } else {
-            response = {
-                type: "reg",
-                data: {
-                    name,
-                    index: player.index,
-                    error: false,
-                    errorText: ""
-                },
-                id: 0
-            };
-        }
+        }));
+        return;
     }
 
-    // отправляем ЛИЧНЫЙ ответ
-    ws.send(JSON.stringify(response));
+    // Генерируем уникальный индекс игрока
+    const index = Math.random().toString(36).slice(2);
 
-    // обновляем таблицу победителей
-    broadcastWinners();
+    ws.playerName = name;   // важно!
+    ws.playerIndex = index; // важно!
+
+    ws.send(JSON.stringify({
+        type: "reg",
+        data: JSON.stringify({ name, error: false, errorText: "" }),
+        id: 0
+    }));
 }
 
 /**
