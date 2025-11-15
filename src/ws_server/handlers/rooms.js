@@ -28,27 +28,52 @@ export function handleCreateRoom(ws) {
  * Добавляем игрока в комнату
  */
 export function handleAddUserToRoom(ws, data) {
+
     if (!ws.playerName || !ws.playerIndex) return; // игрок должен быть зарегистрирован
-    const { indexRoom } = data;
-    const room = rooms.get(indexRoom);
+    if (typeof data === 'string') {
+        try {
+            data = JSON.parse(data);
+        } catch (e) {
+            console.error("Failed to parse data JSON:", e);
+            return;
+        }
+    }
+    console.log("Data received in add_user_to_room:", data);
+    console.log("indexRoom:", data.indexRoom, "typeof indexRoom:", typeof data.indexRoom);
+
+    const { indexRoom }= data;
+
+    const roomId = Number(data.indexRoom);
+    console.log("Current rooms keys (types):", Array.from(rooms.entries()).map(([k, v]) => [k, typeof k]));
+
+    const room = rooms.get(roomId);
+    if (!room) {
+        console.error(`Room with id ${indexRoom} not found. Available rooms:`, Array.from(rooms.keys()));
+        return;
+    }
+
 
     if (!room) return;
-
+    console.log("Check");
     // Комната должна быть свободной (1 игрок)
     if (room.players.length >= 2) return;
+    console.log("ROOM UPDATED1:", indexRoom, room.players.map(p => p.name));
 
     room.players.push({
         ws,
         name: ws.playerName,
         index: ws.playerIndex
     });
+    console.log("ROOM UPDATED2:", indexRoom, room.players.map(p => p.name));
 
     broadcastRooms();
-
+    console.log("CHECK CREATE GAME:", room.players.length);
     // Когда двое — создаём игру
+
     if (room.players.length === 2) {
         createGameForRoom(room, indexRoom);
     }
+
 }
 
 /**
@@ -89,7 +114,7 @@ function createGameForRoom(room, roomId) {
     // Два игрока
     const [p1, p2] = room.players;
 
-    const gameData = {
+    /*const gameData = {
         idGame,
         players: [
             {
@@ -106,29 +131,55 @@ function createGameForRoom(room, roomId) {
         ships: {},
         board: {},
         currentPlayer: null
-    };
+    };*/
 
     // Сохраняем игру в комнату
     room.gameId = idGame;
+    console.log("CREATE GAME >>>", idGame, "Players:", p1.name, p2.name);
 
-    const response1 = JSON.stringify({
+    const payload1 = JSON.stringify({
         type: "create_game",
-        data:  JSON.stringify({
+        data: JSON.stringify({ idGame, idPlayer: "p1_" + idGame }),
+        id: 0
+    });
+    const payload2 = JSON.stringify({
+        type: "create_game",
+        data: JSON.stringify({ idGame, idPlayer: "p2_" + idGame }),
+        id: 0
+    });
+
+    if (p1.ws.readyState === 1) {
+        p1.ws.send(payload1);
+        console.log("Sent create_game to", p1.name);
+    } else {
+        console.log("Cannot send to", p1.name, "state=", p1.ws.readyState);
+    }
+
+    if (p2.ws.readyState === 1) {
+        p2.ws.send(payload2);
+        console.log("Sent create_game to", p2.name);
+    } else {
+        console.log("Cannot send to", p2.name, "state=", p2.ws.readyState);
+    }
+
+/*
+    // Рассылаем create_game каждому игроку
+    p1.ws.send(JSON.stringify({
+        type: "create_game",
+        data: {
             idGame,
             idPlayer: gameData.players[0].id
-        }),
+        },
         id: 0
-    });
+    }));
 
-    const response2 = JSON.stringify({
+    p2.ws.send(JSON.stringify({
         type: "create_game",
-        data: JSON.stringify( {
+        data: {
             idGame,
             idPlayer: gameData.players[1].id
-        }),
+        },
         id: 0
-    });
-
-    p1.ws.send(response1);
-    p2.ws.send(response2);
+    }));*/
 }
+
